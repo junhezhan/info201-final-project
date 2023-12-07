@@ -1,0 +1,218 @@
+---
+title: "final project (have code)"
+output: html_document
+date: "2023-12-08"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+library(tidyverse)
+library(dplyr)
+library("ggplot2")
+library(readr)
+library(readxl)
+library(lubridate)
+library(data.table)
+```
+## 1.Our topic.
+Seattle's bustling urban landscape is a dynamic backdrop for exploring the intersection of urban mobility and traffic safety. In recent years, shared mobility services have revolutionized urban transportation, providing convenient, environmentally friendly alternatives to traditional vehicle travel. However, the integration of these services into the urban fabric raises critical questions about transportation dynamics and safety. 
+This analysis delves into the heart of this modern conundrum, analyzing how people travel in Seattle and how crashes occur over the course of a year, revealing patterns and insights that can inform policy, urban planning, and the future of sustainable urban mobility.
+
+
+## 2.What do we already know about this topic.
+Current discussions about shared mobility are centered around its benefits - reducing carbon emissions, easing traffic congestion, and enhancing urban connectivity. In contrast, car accidents are also happening around us every day, posing a risk to people's safety.
+
+
+## 3.What exactly are this project doing.
+We explored the following three questions by combining a table of statistics on how and when people travel in Seattle with a table of statistics on automobile accidents in Seattle:
+1. is there a correlation between the times of day in Seattle when automobile accidents occur more frequently and the times of day when people travel more frequently by car?
+2. As more people choose public green transportation, does this significantly affect the rate of automobile accidents?
+3. Does weather increase the frequency of crashes?
+
+
+## 4.Why is it interesting–why should someone care? why should someone read your report?
+Understanding the dynamics at play between shared mobility and traffic incidents is crucial. It holds significance for a wide range of stakeholders—from city planners and policymakers to the shared mobility industry and the general public. The findings can guide efforts to improve urban mobility infrastructure, enhance safety measures, and shape regulations that foster a harmonious coexistence of various modes of transportation.
+
+
+## 5.Our datasets.
+### 5.1 Total description of 2 datasets
+Because we want to study the relationship between the way people travel and the number of car accidents in Seattle, both data come from the Seattle government, and the Seattle Department of Transportation collects and organizes the data, so the data is very reliable. About data access: Both are open data with no restrictions, and are used for people to view and understand the city's traffic conditions. About the dataset: the first dataset is the travel time and mode of people in Seattle, the population is 56.5K, and the number of samples is randomly selected according to our different uses; the second data is about the statistics of automobile collision in Seattle, the population is 173.3K, and the number of samples is the same as the first dataset. The data we initially downloaded from the Internet contained many variables that we could not use, so we filtered the ones that were useful and relevant to our needs. We also converted the time variable in the second dataset from str to number. each row provides the number of car trips and the distance traveled during a specific time period in a given year and quarter , as well as the number of traffic trips and the distance traveled during a specific time period in a given year and quarter . Each row provides the number of car trips and the distance traveled during a specific time period in a given year and quarter , as well as the number of traffic collisions that occurred in different time periods. For example, the first row might indicate that in the second quarter For example, the first row might indicate that in the second quarter of 2021, there were 23 car trips at night with a total travel distance of 27,217.391 units, while there were 734 collisions during the AM Peak period. We had 50K observations. for sample selection, we excluded all data with NA and then randomly selected 25K from the population. for data that did have data we chose to just drop it.
+
+### 5.2 The first dataset
+source 1:https://data.seattle.gov/Transportation/Seattle-transportation-types/qnx8-3cwk
+
+
+### 5.3 The second dataset
+source 2:https://data.seattle.gov/dataset/SDOT-Collisions-All-Years/79xi-y524/about_data
+
+
+### 6.The shared mobility diagram
+```{r}
+Shared_Mobility <- read_csv("Downloads/Shared_Mobility_Aggregated_Trips.csv")
+head(Shared_Mobility)
+
+Shared_Mobility <- Shared_Mobility %>%
+  select(daypart_End, VehicleType, quarter, year, TripCount, TripDistance)
+
+summary <- Shared_Mobility %>%
+  group_by(VehicleType, daypart_End) %>%
+  summarise(TripCount = sum(TripCount))
+
+ggplot(summary, aes(x = VehicleType, y = TripCount, fill = daypart_End)) +
+  geom_bar(stat = "identity", position = position_dodge()) +
+  labs(title = "Transportation Types In Seattle",
+       x = "Type Of Transportation",
+       y = "Count") +
+  scale_fill_brewer(palette = "Set3") +
+  theme_minimal()
+```
+The graph of Transportation Types In Seattle gives us a visual representation of the frequency of different transportation types segmented by the time of day. Based on the graph, here are some observations and conclusions that can be drawn: 
+1. Totally, the graph indicates that the scooter is the most frequently used mode of transportation, followed by the car and then the bicycle. This suggests that in Seattle, scooters might be a popular choice for commuting or traveling around the city.
+2. In AM Peak: There is a high usage of scooters and bicycles during the AM peak hours, which is typically the morning rush hour. This suggests that for morning commutes, this kind of small transportations potentially due to their convenience and the health and environmental benefits they offer. 
+3. In Mid-Day: The car shows its highest usage during the mid-day, which might correspond to lunch hours or mid-day errands when people prefer the convenience of driving.
+4. In PM Peak: Again, the bicycle usage spikes during the PM peak hours, representing the evening rush hour. This reinforces the idea that bicycles are a common choice for commuting home from work.
+5. In Weekend: Both of bicycles and scooters is used most frequently during the Weekend.
+6. In Night: There is a decrease in the usage of all transportation types.
+
+
+## 7.The Collisions all years in Seattle 
+### 7.1 Clean data
+```{r}
+Collisions_All_Years <- read_csv("Downloads/SDOT_Collisions_All_Years (2).csv")
+Collisions_All_Years <- Collisions_All_Years %>% 
+  select(INCDTTM,SDOT_COLDESC,COLLISIONTYPE,WEATHER) %>% 
+  filter(!is.na(INCDTTM) & !is.na(SDOT_COLDESC) & !is.na(COLLISIONTYPE) & !is.na(WEATHER) & !WEATHER=="Unknown")
+head(Collisions_All_Years, 6)
+
+Collisions_All_Years <- Collisions_All_Years %>%
+    mutate(
+    # Parse the INCDTTM column into a POSIXct (date-time) object
+    date_time = mdy_hms(INCDTTM),
+    # Extract the year
+    year = year(date_time),
+    # Determine if the date is a weekend
+    is_weekend = wday(date_time) %in% c(1, 7),
+    # Categorize the time of day into the specified periods
+    daypart_End = case_when(
+      is_weekend ~ "Weekend",
+      hour(date_time) >= 5 & hour(date_time) < 10 ~ "AM Peak",
+      hour(date_time) >= 10 & hour(date_time) < 15 ~ "Mid-Day",
+      hour(date_time) >= 15 & hour(date_time) < 19 ~ "PM Peak",
+      TRUE ~ "Night"
+    )
+  ) %>%
+  select(SDOT_COLDESC,COLLISIONTYPE,WEATHER,year,daypart_End) %>% 
+  filter(!is.na(daypart_End) & !is.na(year))
+
+view(Collisions_All_Years)
+```
+
+### 7.2 Number of Collisions by Year in Seattle (diagram)
+```{r}
+ggplot(Collisions_All_Years, aes(x = as.factor(year))) +
+  geom_bar() +
+  labs(title = "Number of Collisions by Year",
+       x = "Year",
+       y = "Count of Collisions") +
+  theme_minimal()
+```
+The bar chart illustrates the total number of collisions that occurred each year from 2004 to 2023.
+There's a general trend of a gradual increase in collisions from 2004 until a peak around 2015.
+After 2015, there is a noticeable decline in the number of collisions, with some fluctuation from year to year.
+The years 2020 and 2023 show a significant drop in the number of collisions.  The decrease in 2020 could potentially be attributed to the COVID-19 pandemic and associated lockdowns, which led to less traffic.
+The sharp decline in 2023 might suggest a continuation of the trend, although it could also be due to incomplete data for the current year.
+
+
+### 7.3 The Collisions by Time of Day in Seattle (diagram)
+```{r}
+ggplot(Collisions_All_Years, aes(x = daypart_End, fill = daypart_End)) +
+  geom_bar() +
+  labs(title = "Collisions by Time of Day",
+       x = "Time of Day",
+       y = "Count of Collisions") +
+  theme_minimal()
+```
+This bar chart shows the frequency of collisions across different parts of the day in Seattle.
+The "Weekend" time period has the highest count of collisions, significantly more than any other time period depicted.
+"PM Peak" and "Night" also have a high number of collisions, suggesting these are also times when collisions are more frequent.
+The trend suggests that the time of day plays a role in collision frequency, with evenings and weekends being particularly prone to higher numbers of incidents.
+
+
+### 7.4 The Collisions by Weather Condition
+```{r}
+Collisions_All_Years %>%
+  count(WEATHER) %>%
+  ggplot(aes(x = reorder(WEATHER, n), y = n, fill = WEATHER)) +
+  geom_bar(stat = "identity") +
+  coord_flip() +
+  labs(title = "Collisions by Weather Condition",
+       x = "Weather Condition",
+       y = "Number of Collisions")
+```
+This graph is used to analyze the number of collisions by weather conditions.
+The highest number of collisions in clear weather could suggest that visibility alone is not the only factor contributing to road safety. Since more people likely drive in clear weather, the increased traffic volume could lead to more collisions. Alternatively, drivers might be more cautious in adverse weather conditions, leading to fewer collisions despite the increased risk.
+There's a possibility that drivers underestimate the risks associated with clear and rainy weather, leading to less cautious driving behavior and hence more collisions.  Conversely, the perceived risk in more severe weather may lead to more defensive driving or a decision not to drive at all. But it may be that collisions in severe weather are underreported due to the difficulty of reaching accidents or delays in reporting.
+In summary, while one might intuitively expect most collisions to occur during adverse weather conditions due to reduced visibility and road grip, the data suggests that the sheer volume of traffic during clear and less severe weather conditions plays a significant role in the frequency of road collisions.
+
+
+## 8. Merge 2 datasets
+```{r}
+Shared_Mobility <- Shared_Mobility %>%
+  filter(VehicleType == "car")
+
+set.seed(123)
+
+sampled_Shared_Mobility <- Shared_Mobility %>%
+  sample_n(size = 5000)
+
+sampled_Collisions <- Collisions_All_Years %>%
+  sample_n(size = 5000)
+
+collision_counts_by_time_period <- Collisions_All_Years %>%
+  group_by(year, daypart_End) %>%
+  summarise(CollisionCount = n(),
+            .groups = 'drop')
+
+merged_data <- inner_join(sampled_Shared_Mobility, collision_counts_by_time_period, by = c("year","daypart_End"))
+
+trip_counts_by_time_period <- sampled_Shared_Mobility %>%
+  group_by(daypart_End) %>%
+  summarise(TripCount = n(),
+            .groups = 'drop')
+
+final_data <- inner_join(trip_counts_by_time_period, collision_counts_by_time_period, by = "daypart_End")
+
+ggplot(final_data, aes(x = TripCount, y = CollisionCount)) +
+  geom_point(aes(color = daypart_End), size = 3) +  
+  labs(title = "Correlation of Trips counts and Collisions by Time of Day",
+       x = "Number of Trips",
+       y = "Number of Collisions") +
+  theme_minimal() +
+  scale_color_brewer(palette = "Set1") +  
+  geom_smooth(method = "lm", se = FALSE)  
+```
+The scatter plot appears to show the relationship between the number of trips and the number of collisions at different times of the day in Seattle. The times of day are color-coded, with each color representing a different time segment: AM Peak, Mid-Day, Night, PM Peak, and Weekend.
+There seems to be a positive correlation between the number of trips and the number of collisions, as indicated by the upward trend of the blue regression line. This suggests that as the number of trips increases, the number of collisions tends to increase as well.
+There are outliers, especially in the AM and PM peaks.  These could represent days with unusually high collision counts—potentially due to extreme weather, special events, or other anomalies that affect driving conditions or driver behavior.
+he data indicates that there is a correlation between the number of trips and collisions, with peak times showing increased collision rates.  This may suggest that traffic volume is a significant factor in the frequency of collisions, but other factors such as driver behavior, weather conditions, and road infrastructure likely also play a role.
+
+
+
+## 9.Project Results.
+In this project, we analyzed the relationship between peak vehicle travel time periods and high vehicle crash time periods. By filtering for specific vehicle types and randomly selecting samples, we constructed a dataset that could be used for analysis. Our methodology included grouping the collision data by year and time of day and then merging it with the shared trip data.
+Graphs show the relationship between the number of trips and the number of collisions at different times of the day. The results show that the number of collisions increases as the number of trips increases during the AM and PM peak hours.
+
+
+## 10.Findings.
+Our findings reveal the potential impact of shared trips on urban traffic safety. The positive correlation trend suggests that increased trips may raise the risk of vehicle crashes. This may reflect the limitations of urban infrastructure in handling peak hour travel demand. In addition, our results may also point to potential room for improvement in traffic management strategies, e.g., by optimizing traffic flow or promoting alternative travel modes to reduce congestion.
+In response to the research question we posed in the introduction about how shared trips affect urban traffic safety, our results provide a partial answer. We found a correlation between the number of trips and vehicle crashes, but failed to clarify the causal relationship. Our results highlight the complexity of urban transportation systems and the multiple factors that influence safety.
+A limitation of this study is the failure to control for all possible confounding variables such as weather conditions, road quality, or driver demographics. The sample size may not have fully captured the subtle variations in the data. Therefore, our findings should be considered indicative and our story should acknowledge the exploratory nature of this analysis.
+
+
+## 11.Directions for future work.
+Future studies could consider including more variables such as geographic data, or temporal data examining the effects of seasonality or specific events. Longitudinal studies may provide deeper insight into temporal trends. In addition, qualitative data such as driver behavior surveys could provide another level of understanding of the quantitative patterns we observed.
+
+
+## 12.Summarization.
+In summary, our analysis shows that an increase in the number of trips is significantly correlated with urban traffic dynamics, especially during peak hours. While these findings are insightful, they should be viewed as a basis for further research rather than a final conclusion. Future work should build on these findings and use more comprehensive data and more detailed analysis to fully understand the impact of shared trips on urban traffic safety. The key message is that increased shared mobility has real impacts on urban traffic dynamics and that understanding these impacts is critical to developing safer and more efficient urban transportation systems.
+
