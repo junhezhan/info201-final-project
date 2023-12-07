@@ -1,0 +1,19 @@
+---
+title: "final data documentation"
+author: "Junhe Zhang"
+date: "2023-12-07"
+output: html_document
+---
+
+links for our datasets: 
+source 1:https://data.seattle.gov/Transportation/Seattle-transportation-types/qnx8-3cwk
+source 2:https://data.amerigeoss.org/dataset/transportation-to-work-5f259
+
+For our final data's variables:
+daypart_End: time of day
+TripCount: the number of travel by car we counted in that period of time 
+year: Year to which this data belongs
+CollisionCount: the number of automobile accidents occur in that period of time
+
+Basic summary of our final data:
+For this data we have 100 rows and 4 columns. All the data we selected are without NA value.
