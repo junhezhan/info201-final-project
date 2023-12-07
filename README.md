@@ -5,4 +5,4 @@ Graphs show the relationship between the number of trips and the number of colli
 Seattle's bustling urban landscape is a dynamic backdrop for exploring the intersection of urban mobility and traffic safety. In recent years, shared mobility services have revolutionized urban transportation, providing convenient, environmentally friendly alternatives to traditional vehicle travel. However, the integration of these services into the urban fabric raises critical questions about transportation dynamics and safety. 
 This analysis delves into the heart of this modern conundrum, analyzing how people travel in Seattle and how crashes occur over the course of a year, revealing patterns and insights that can inform policy, urban planning, and the future of sustainable urban mobility.
 
-![image[(image.png)
+![image](image.png)
